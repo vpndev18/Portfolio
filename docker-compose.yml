@@ -1,0 +1,36 @@
+# Local-dev infrastructure for Portfolio.
+# At this stage we only run Postgres here; the API runs on the host via `dotnet run`
+# and connects on localhost:5432. We'll add the API service in Phase 5.
+#
+# Usage:
+#   docker compose up -d        # start in background
+#   docker compose ps           # check health
+#   docker compose down         # stop (data preserved in named volume)
+#   docker compose down -v      # stop AND wipe DB (use when migrations get tangled)
+
+services:
+  db:
+    image: postgres:16
+    container_name: portfolio_db
+    environment:
+      # `${VAR:-default}` → use VAR from .env if set, else fall back to the default.
+      # `${VAR:?msg}`     → fail fast at `up` time if VAR is missing (no silent default).
+      POSTGRES_USER: ${POSTGRES_USER:-portfolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-portfolio_dev}
+    ports:
+      - "5432:5432"  # host:container — the API on your machine hits the host side
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # named volume → survives `docker compose down`
+    healthcheck:
+      # `$$` escapes the dollar sign so Compose doesn't try to interpolate it —
+      # the variable is resolved INSIDE the container at runtime, not at parse time.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:  # named volume; Docker manages its location
