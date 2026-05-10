@@ -3,6 +3,7 @@ import { Container } from '@/components/ui/container'
 import { Reveal } from '@/components/animation/Reveal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CoderAvatar } from '@/components/CoderAvatar'
 import { siteConfig } from '@/config/site'
 
 const skillGroups: Array<{ heading: string; items: string[] }> = [
@@ -36,21 +37,30 @@ export function AboutPage() {
   return (
     <Container className="pt-16 pb-8">
       <Reveal>
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]">
-          About
-        </span>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
-          A short version
-        </h1>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="group transition-transform duration-300 hover:rotate-[-2deg]">
+            <CoderAvatar className="max-w-[160px] sm:max-w-[180px]" />
+          </div>
+          <div>
+            <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]">
+              About
+            </span>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+              Hi, I'm {siteConfig.fullName}.
+            </h1>
+            <p className="mt-3 font-mono text-sm text-[var(--color-muted)]">
+              {siteConfig.role}
+            </p>
+          </div>
+        </div>
       </Reveal>
 
       <Reveal delay={0.05}>
-        <div className="mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1.5fr_1fr]">
+        <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-[1.5fr_1fr]">
           <div className="space-y-5 text-base leading-relaxed text-[var(--color-muted-strong)]">
             <p>
-              I'm <strong className="font-semibold text-[var(--color-foreground)]">{siteConfig.fullName}</strong>,
-              a backend-leaning engineer who spends most days in .NET and the rest in React. I like
-              well-shaped APIs, ergonomic data models, and code that's boring on purpose.
+              I'm a backend-leaning engineer who spends most days in .NET and the rest in React.
+              I like well-shaped APIs, ergonomic data models, and code that's boring on purpose.
             </p>
             <p>
               The projects you see on this site are how I keep current — each one is an excuse to

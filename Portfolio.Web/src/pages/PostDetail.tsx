@@ -7,6 +7,8 @@ import { Container } from '@/components/ui/container'
 import { Badge } from '@/components/ui/badge'
 import { LoadingBlock, ErrorBlock } from '@/components/States'
 import { Reveal } from '@/components/animation/Reveal'
+import { ReadingProgress } from '@/components/ReadingProgress'
+import { CodeBlock } from '@/components/CodeBlock'
 import { useFetch } from '@/hooks/useFetch'
 import { formatDate } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -17,6 +19,7 @@ export function PostDetailPage() {
 
   return (
     <Container className="pt-16 pb-8">
+      {data && <ReadingProgress />}
       <Link
         to="/blog"
         className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-muted)] transition-colors hover:text-[var(--color-foreground)]"
@@ -58,6 +61,7 @@ export function PostDetailPage() {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeHighlight]}
+                  components={{ pre: CodeBlock }}
                 >
                   {data.content}
                 </ReactMarkdown>

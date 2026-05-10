@@ -1,7 +1,24 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
+import { Download, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { siteConfig } from '@/config/site'
+
+function isMac() {
+  return typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
+}
+
+function dispatchCmdK() {
+  // Synthetic event the palette listens for.
+  window.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: isMac(),
+      ctrlKey: !isMac(),
+      bubbles: true,
+    }),
+  )
+}
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false)
@@ -44,7 +61,7 @@ export function Nav() {
               to={item.href}
               className={({ isActive }) =>
                 cn(
-                  'relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  'relative hidden rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:inline-block',
                   isActive
                     ? 'text-[var(--color-foreground)]'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]',
@@ -61,6 +78,30 @@ export function Nav() {
               )}
             </NavLink>
           ))}
+
+          <button
+            type="button"
+            onClick={dispatchCmdK}
+            aria-label="Open command palette"
+            className="ml-1 inline-flex h-9 items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs text-[var(--color-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-foreground)] sm:px-3"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Search…</span>
+            <kbd className="hidden rounded border border-[var(--color-border)] px-1 font-mono text-[10px] sm:inline">
+              {isMac() ? '⌘K' : 'Ctrl K'}
+            </kbd>
+          </button>
+
+          <a
+            href={siteConfig.resumeUrl}
+            target="_blank"
+            rel="noreferrer"
+            download
+            className="ml-1 hidden h-9 items-center gap-1.5 rounded-md bg-[var(--color-accent)] px-3 text-xs font-medium text-[var(--color-background)] transition-colors hover:bg-[var(--color-accent)]/90 sm:inline-flex"
+          >
+            <Download className="h-3.5 w-3.5" />
+            CV
+          </a>
         </nav>
       </div>
     </header>

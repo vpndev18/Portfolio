@@ -10,6 +10,7 @@ import { CardSkeleton, ErrorBlock, Empty } from '@/components/States'
 import { Button } from '@/components/ui/button'
 import { useFetch } from '@/hooks/useFetch'
 import { api } from '@/lib/api'
+import { siteConfig } from '@/config/site'
 
 export function HomePage() {
   const projects = useFetch(api.listProjects, [])
@@ -97,7 +98,7 @@ export function HomePage() {
               I'm open to backend, full-stack, and contract work. Let's talk.
             </p>
             <Button asChild size="lg" className="mt-7">
-              <a href="mailto:vaibhav@cartoq.com">
+              <a href={`mailto:${siteConfig.email}`}>
                 Say hello <ArrowRight className="h-4 w-4" />
               </a>
             </Button>

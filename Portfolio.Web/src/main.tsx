@@ -13,6 +13,7 @@ import { BlogPage } from '@/pages/Blog'
 import { PostDetailPage } from '@/pages/PostDetail'
 import { AboutPage } from '@/pages/About'
 import { AdminPage } from '@/pages/Admin'
+import { NowPage } from '@/pages/Now'
 import { NotFoundPage } from '@/pages/NotFound'
 
 const router = createBrowserRouter([
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: '/blog', element: <BlogPage /> },
       { path: '/blog/:slug', element: <PostDetailPage /> },
       { path: '/about', element: <AboutPage /> },
+      { path: '/now', element: <NowPage /> },
       { path: '/admin', element: <AdminPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
