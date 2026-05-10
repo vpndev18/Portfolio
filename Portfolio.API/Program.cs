@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Data;
+using Portfolio.API.Features.Posts;
 using Portfolio.API.Features.Projects;
 using Portfolio.API.Middleware;
 using Serilog;
@@ -42,6 +43,7 @@ app.UseHttpsRedirection();
 
 // ─── Endpoint registration ────────────────────────────────────────────────
 app.MapProjectsEndpoints();
+app.MapPostsEndpoints();
 
 // ─── Migrate + seed on startup ────────────────────────────────────────────
 // Convenience for a small single-instance app. We'd reconsider for a
