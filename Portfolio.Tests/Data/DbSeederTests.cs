@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Data;
+using Portfolio.API.Features.Posts;
 using Portfolio.API.Features.Projects;
 
 namespace Portfolio.Tests.Data;
@@ -68,6 +69,62 @@ public class DbSeederTests
         var projects = await db.Projects.ToListAsync();
         Assert.Single(projects);
         Assert.Equal("existing", projects[0].Slug);
+    }
+
+    [Fact]
+    public async Task SeedAsync_SeedsPosts_WithUniqueSlugsAndPublishedDates()
+    {
+        await using var db = CreateDb();
+
+        await DbSeeder.SeedAsync(db);
+
+        var posts = await db.Posts.ToListAsync();
+        Assert.NotEmpty(posts);
+        Assert.All(posts, p =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(p.Slug));
+            Assert.False(string.IsNullOrWhiteSpace(p.Title));
+            Assert.NotNull(p.PublishedAt);
+            Assert.NotEmpty(p.Tags);
+        });
+        var slugs = posts.Select(p => p.Slug).ToList();
+        Assert.Equal(slugs.Count, slugs.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task SeedAsync_DoesNotDuplicatePosts_OnSecondRun()
+    {
+        await using var db = CreateDb();
+
+        await DbSeeder.SeedAsync(db);
+        var firstCount = await db.Posts.CountAsync();
+
+        await DbSeeder.SeedAsync(db);
+        var secondCount = await db.Posts.CountAsync();
+
+        Assert.Equal(firstCount, secondCount);
+    }
+
+    [Fact]
+    public async Task SeedAsync_DoesNotSeedPosts_WhenAnyPostExists()
+    {
+        await using var db = CreateDb();
+        db.Posts.Add(new BlogPost
+        {
+            Slug = "existing-post",
+            Title = "Existing",
+            Excerpt = "x",
+            Content = "x",
+            Tags = new List<string> { "x" },
+            PublishedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        await DbSeeder.SeedAsync(db);
+
+        var posts = await db.Posts.ToListAsync();
+        Assert.Single(posts);
+        Assert.Equal("existing-post", posts[0].Slug);
     }
 
     private static PortfolioDbContext CreateDb()
