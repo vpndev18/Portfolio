@@ -1,4 +1,4 @@
-import type { BlogPost } from './api'
+import { apiUrl, type BlogPost } from './api'
 
 const KEY_STORAGE = 'portfolio.adminKey'
 
@@ -26,7 +26,7 @@ export interface PostUpsert {
 
 async function adminFetch(path: string, init?: RequestInit): Promise<Response> {
   const key = getAdminKey()
-  return fetch(path, {
+  return fetch(apiUrl(path), {
     ...init,
     headers: {
       ...(init?.headers ?? {}),

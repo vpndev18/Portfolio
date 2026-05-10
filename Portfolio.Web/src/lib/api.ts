@@ -33,8 +33,16 @@ export interface BlogPost {
   updatedAt: string
 }
 
+// In dev: empty string keeps the Vite proxy working ("/api/..." stays relative).
+// In prod: set VITE_API_URL=https://api.vallabh.dev (or wherever) at build time.
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+
+export function apiUrl(path: string) {
+  return `${API_BASE}${path}`
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { Accept: 'application/json' } })
+  const res = await fetch(apiUrl(path), { headers: { Accept: 'application/json' } })
   if (!res.ok) {
     throw new Error(`Request failed (${res.status}): ${path}`)
   }
