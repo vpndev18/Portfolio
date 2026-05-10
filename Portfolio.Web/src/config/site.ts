@@ -6,7 +6,7 @@ export const siteConfig = {
   role: 'Backend Engineer · .NET & TypeScript',
   tagline:
     'I build durable backends and the lean UIs that sit on top of them — with .NET, EF Core, Postgres, and React.',
-  email: 'vaibhav@cartoq.com',
+  email: 'vallabhwork18@gmail.com',
   location: 'India',
   // Drop the file at Portfolio.Web/public/resume.pdf for this link to work.
   resumeUrl: '/resume.pdf',

@@ -1,0 +1,23 @@
+# Keep the build context lean.
+**/bin/
+**/obj/
+**/out/
+**/dist/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/.idea/
+.git/
+.gitignore
+.gitattributes
+.env
+.env.*
+*.user
+*.suo
+*.log
+docker-compose.yml
+DEPLOY.md
+README.md
+.claude/
+Portfolio.Web/
+Portfolio.Tests/

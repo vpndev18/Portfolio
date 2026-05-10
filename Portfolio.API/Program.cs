@@ -28,11 +28,19 @@ builder.Services.AddProblemDetails();
 // Admin auth filter is read per-request from IConfiguration.
 builder.Services.AddScoped<AdminKeyFilter>();
 
-// CORS for the Vite dev server (5173) when running outside the proxy.
+// CORS for the SPA. In dev we always allow http://localhost:5173; in prod
+// add the deployed origin(s) to Cors:AllowedOrigins in configuration.
+var configuredOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+var allowedOrigins = new[] { "http://localhost:5173" }
+    .Concat(configuredOrigins)
+    .Distinct()
+    .ToArray();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Web", p => p
-        .WithOrigins("http://localhost:5173")
+        .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod());
 });
