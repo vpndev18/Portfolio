@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Data;
+using Portfolio.API.Auth;
 using Portfolio.API.Features.Posts;
 using Portfolio.API.Features.Projects;
 using Portfolio.API.Middleware;
@@ -24,6 +25,18 @@ builder.Services.AddDbContext<PortfolioDbContext>(options =>
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// Admin auth filter is read per-request from IConfiguration.
+builder.Services.AddScoped<AdminKeyFilter>();
+
+// CORS for the Vite dev server (5173) when running outside the proxy.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Web", p => p
+        .WithOrigins("http://localhost:5173")
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 // ─── Middleware pipeline (order matters) ──────────────────────────────────
@@ -40,10 +53,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("Web");
 
 // ─── Endpoint registration ────────────────────────────────────────────────
 app.MapProjectsEndpoints();
 app.MapPostsEndpoints();
+app.MapAdminPostsEndpoints();
 
 // ─── Migrate + seed on startup ────────────────────────────────────────────
 // Convenience for a small single-instance app. We'd reconsider for a
