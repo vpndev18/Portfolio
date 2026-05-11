@@ -1,5 +1,5 @@
 import { Mail } from 'lucide-react'
-import { GithubIcon, LinkedinIcon, XIcon } from '@/components/BrandIcons'
+import { GithubIcon, LinkedinIcon } from '@/components/BrandIcons'
 import { Container } from '@/components/ui/container'
 import { siteConfig } from '@/config/site'
 
@@ -16,9 +16,6 @@ export function Footer() {
           </FooterLink>
           <FooterLink href={siteConfig.socials.linkedin} label="LinkedIn">
             <LinkedinIcon className="h-4 w-4" />
-          </FooterLink>
-          <FooterLink href={siteConfig.socials.twitter} label="Twitter / X">
-            <XIcon className="h-4 w-4" />
           </FooterLink>
           <FooterLink href={`mailto:${siteConfig.email}`} label="Email">
             <Mail className="h-4 w-4" />
