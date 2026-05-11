@@ -9,10 +9,12 @@ import { PostCard } from '@/components/PostCard'
 import { CardSkeleton, ErrorBlock, Empty } from '@/components/States'
 import { Button } from '@/components/ui/button'
 import { useFetch } from '@/hooks/useFetch'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/lib/api'
 import { siteConfig } from '@/config/site'
 
 export function HomePage() {
+  useDocumentTitle('Vallabh — Backend Engineer')
   const projects = useFetch(api.listProjects, [])
   const posts = useFetch(api.listPosts, [])
 

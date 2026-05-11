@@ -4,10 +4,12 @@ import { Reveal } from '@/components/animation/Reveal'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatDate } from '@/lib/utils'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { nowContent } from '@/config/now'
 import { siteConfig } from '@/config/site'
 
 export function NowPage() {
+  useDocumentTitle('Now')
   return (
     <Container className="pt-16 pb-8">
       <Reveal>

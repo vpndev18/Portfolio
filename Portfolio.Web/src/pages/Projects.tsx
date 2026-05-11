@@ -6,9 +6,11 @@ import { ProjectCard } from '@/components/ProjectCard'
 import { CardSkeleton, Empty, ErrorBlock } from '@/components/States'
 import { cn } from '@/lib/utils'
 import { useFetch } from '@/hooks/useFetch'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/lib/api'
 
 export function ProjectsPage() {
+  useDocumentTitle('Projects')
   const { data, loading, error } = useFetch(api.listProjects, [])
   const [filter, setFilter] = useState<string | null>(null)
 

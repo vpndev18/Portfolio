@@ -10,12 +10,14 @@ import { Reveal } from '@/components/animation/Reveal'
 import { ReadingProgress } from '@/components/ReadingProgress'
 import { CodeBlock } from '@/components/CodeBlock'
 import { useFetch } from '@/hooks/useFetch'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { formatDate } from '@/lib/utils'
 import { api } from '@/lib/api'
 
 export function PostDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>()
   const { data, loading, error } = useFetch(() => api.getPost(slug), [slug])
+  useDocumentTitle(data?.title ?? null)
 
   return (
     <Container className="pt-16 pb-8">

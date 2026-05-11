@@ -1,0 +1,45 @@
+# Fly.io app config for the Portfolio API.
+# See https://fly.io/docs/reference/configuration/ for all options.
+#
+# Deploy:
+#   fly deploy --config fly.toml
+#
+# First time only:
+#   fly apps create portfolio-api          (or change the app name below)
+#   fly secrets set ConnectionStrings__Default='...' Admin__Key='...' \
+#     Cors__AllowedOrigins__0='https://vallabh.dev' \
+#     Cors__AllowedOrigins__1='https://www.vallabh.dev'
+#   fly deploy
+
+app = "portfolio-api"
+primary_region = "bom"        # Mumbai. Change to "sin" (Singapore), "syd", "ams" etc.
+kill_signal  = "SIGINT"
+kill_timeout = 5
+
+[build]
+  dockerfile = "Portfolio.API/Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS        = "http://+:8080"
+
+[http_service]
+  internal_port      = 8080
+  force_https        = true
+  auto_stop_machines = "stop"     # idle → sleep, free-tier friendly
+  auto_start_machines = true
+  min_machines_running = 0        # bump to 1 if you don't want cold starts
+
+  [[http_service.checks]]
+    grace_period   = "10s"
+    interval       = "30s"
+    method         = "GET"
+    timeout        = "5s"
+    path           = "/api/projects/"
+    protocol       = "http"
+
+[[vm]]
+  size      = "shared-cpu-1x"
+  memory    = "512mb"
+  cpu_kind  = "shared"
+  cpus      = 1
