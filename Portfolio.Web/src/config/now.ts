@@ -9,8 +9,8 @@ export const nowContent = {
     {
       heading: 'Working on',
       items: [
-        'Building this portfolio (Phase 4 — Cmd+K, blog polish, /now).',
-        'Polishing the .NET reference patterns in BoilerplateApi for re-use across projects.',
+        'Shipping vallabh.dev — this portfolio and writing space.',
+        'Iterating on Foresight AI: Monte Carlo simulations + AI advice on top of .NET 9 minimal APIs.',
       ],
     },
     {
