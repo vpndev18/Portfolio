@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { LoadingBlock, ErrorBlock } from '@/components/States'
+import { useDocumentTitle, useRobotsMeta } from '@/hooks/useDocumentTitle'
 import { formatDate } from '@/lib/utils'
 import {
   adminApi,
@@ -27,6 +28,8 @@ const emptyForm: PostUpsert & { id: number | null } = {
 }
 
 export function AdminPage() {
+  useDocumentTitle('Admin')
+  useRobotsMeta('noindex, nofollow')
   const [authed, setAuthed] = useState(() => Boolean(getAdminKey()))
 
   if (!authed) {

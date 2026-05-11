@@ -4,9 +4,11 @@ import { Reveal } from '@/components/animation/Reveal'
 import { PostCard } from '@/components/PostCard'
 import { CardSkeleton, Empty, ErrorBlock } from '@/components/States'
 import { useFetch } from '@/hooks/useFetch'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/lib/api'
 
 export function BlogPage() {
+  useDocumentTitle('Writing')
   const { data, loading, error } = useFetch(api.listPosts, [])
 
   return (

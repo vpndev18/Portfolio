@@ -4,6 +4,7 @@ import { Reveal } from '@/components/animation/Reveal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CoderAvatar } from '@/components/CoderAvatar'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { siteConfig } from '@/config/site'
 
 const skillGroups: Array<{ heading: string; items: string[] }> = [
@@ -34,6 +35,7 @@ const skillGroups: Array<{ heading: string; items: string[] }> = [
 ]
 
 export function AboutPage() {
+  useDocumentTitle('About')
   return (
     <Container className="pt-16 pb-8">
       <Reveal>

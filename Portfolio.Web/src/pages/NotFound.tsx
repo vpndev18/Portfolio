@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Container } from '@/components/ui/container'
 import { Button } from '@/components/ui/button'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export function NotFoundPage() {
+  useDocumentTitle('Page not found')
   return (
     <Container className="flex min-h-[70vh] flex-col items-center justify-center text-center">
       <span className="font-mono text-sm uppercase tracking-[0.3em] text-[var(--color-accent)]">

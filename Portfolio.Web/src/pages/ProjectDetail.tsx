@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button'
 import { LoadingBlock, ErrorBlock } from '@/components/States'
 import { Reveal } from '@/components/animation/Reveal'
 import { useFetch } from '@/hooks/useFetch'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { api } from '@/lib/api'
 
 export function ProjectDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>()
   const { data, loading, error } = useFetch(() => api.getProject(slug), [slug])
+  useDocumentTitle(data?.title ?? null)
 
   return (
     <Container className="pt-16 pb-8">
