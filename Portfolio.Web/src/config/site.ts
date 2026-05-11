@@ -11,9 +11,8 @@ export const siteConfig = {
   // Drop the file at Portfolio.Web/public/resume.pdf for this link to work.
   resumeUrl: '/resume.pdf',
   socials: {
-    github: 'https://github.com/yourname',
-    linkedin: 'https://www.linkedin.com/in/yourname',
-    twitter: 'https://twitter.com/yourname',
+    github: 'https://github.com/vpndev18',
+    linkedin: 'https://www.linkedin.com/in/vallabhniturkar/',
   },
   nav: [
     { label: 'Work', href: '/projects' },
