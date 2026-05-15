@@ -1,0 +1,18 @@
+# Cloudflare Workers static-assets config for the Vite SPA.
+# The project on Cloudflare is a "Workers" project (not legacy Pages),
+# so deployment uses `npx wrangler deploy`, which reads this file.
+#
+# Build pipeline (configured in the Cloudflare dashboard):
+#   1. Root directory:  /Portfolio.Web
+#   2. Build command:   npm ci && npm run build
+#   3. Deploy command:  npx wrangler deploy   (default)
+#
+# Wrangler then uploads everything in ./dist as static assets.
+name = "portfolio"
+compatibility_date = "2024-12-01"
+
+[assets]
+directory = "./dist"
+# Serve index.html for unmatched routes so React Router handles
+# client-side routes like /projects, /blog/:slug, /admin.
+not_found_handling = "single-page-application"
