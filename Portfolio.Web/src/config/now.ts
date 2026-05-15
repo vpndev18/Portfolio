@@ -9,7 +9,7 @@ export const nowContent = {
     {
       heading: 'Working on',
       items: [
-        'Shipping vallabh.dev — this portfolio and writing space.',
+        'Shipping vallabhniturkar.com — this portfolio and writing space.',
         'Iterating on Foresight AI: Monte Carlo simulations + AI advice on top of .NET 9 minimal APIs.',
       ],
     },
