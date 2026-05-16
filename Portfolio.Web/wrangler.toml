@@ -1,6 +1,7 @@
 # Cloudflare Workers static-assets config for the Vite SPA.
 # The project on Cloudflare is a "Workers" project (not legacy Pages),
 # so deployment uses `npx wrangler deploy`, which reads this file.
+# Live domain: https://vallabhniturkar.com (apex + www custom-domain-bound).
 #
 # Build pipeline (configured in the Cloudflare dashboard):
 #   1. Root directory:  /Portfolio.Web
