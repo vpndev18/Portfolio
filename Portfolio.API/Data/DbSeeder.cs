@@ -12,14 +12,19 @@ public static class DbSeeder
         await SeedPostsAsync(db, ct);
     }
 
+    /// <summary>
+    /// Projects have no admin UI, so this file is their source of truth and the
+    /// seeder *syncs* rather than seeds-once: entries are upserted by slug and
+    /// any project no longer listed here is removed. That means edits like a
+    /// rename reach an already-populated database on the next deploy, instead of
+    /// silently doing nothing because the table was non-empty.
+    ///
+    /// Posts are handled differently — see SeedPostsAsync.
+    /// </summary>
     private static async Task SeedProjectsAsync(PortfolioDbContext db, CancellationToken ct)
     {
-        if (await db.Projects.AnyAsync(ct))
+        var seed = new[]
         {
-            return;
-        }
-
-        db.Projects.AddRange(
             new Project
             {
                 Slug = "foresight-ai",
@@ -33,20 +38,48 @@ public static class DbSeeder
             },
             new Project
             {
-                Slug = "expense-tracker",
-                Title = "Expense Tracker",
+                Slug = "finquery",
+                Title = "FinQuery",
                 ShortDescription = "Multi-service expense tracker with real-time updates over SignalR and Redis caching.",
                 LongDescription = "Full-stack expense tracker using vertical slice architecture. Backend in .NET 8 with EF Core + SQL Server, Redis for caching, Qdrant for semantic search, and SignalR for live group expense updates. Frontend is React with feature-folder organization.",
                 LiveUrl = null,
-                RepoUrl = "https://github.com/vpndev18/ExpenseTracker",
+                RepoUrl = "https://github.com/vpndev18/FinQuery",
                 TechStack = new List<string> { ".NET 8", "EF Core", "SQL Server", "Redis", "Qdrant", "SignalR", "React", "Docker" },
                 DisplayOrder = 2
             }
-        );
+        };
+
+        var existing = await db.Projects.ToListAsync(ct);
+        var seedSlugs = seed.Select(p => p.Slug).ToHashSet();
+
+        foreach (var incoming in seed)
+        {
+            var current = existing.FirstOrDefault(p => p.Slug == incoming.Slug);
+            if (current is null)
+            {
+                db.Projects.Add(incoming);
+                continue;
+            }
+
+            current.Title = incoming.Title;
+            current.ShortDescription = incoming.ShortDescription;
+            current.LongDescription = incoming.LongDescription;
+            current.LiveUrl = incoming.LiveUrl;
+            current.RepoUrl = incoming.RepoUrl;
+            current.TechStack = incoming.TechStack;
+            current.DisplayOrder = incoming.DisplayOrder;
+        }
+
+        // Drop projects that were removed from the seed (e.g. renamed slugs).
+        db.Projects.RemoveRange(existing.Where(p => !seedSlugs.Contains(p.Slug)));
 
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Unlike projects, posts are editable through /admin — so this only seeds an
+    /// empty table. Syncing here would overwrite or delete things you wrote.
+    /// </summary>
     private static async Task SeedPostsAsync(PortfolioDbContext db, CancellationToken ct)
     {
         if (await db.Posts.AnyAsync(ct))
@@ -84,51 +117,6 @@ Minimal APIs in .NET 8/9 are great for small surfaces — but they're not a free
 ### My rule of thumb
 
 Default to minimal APIs for new projects. Promote a feature to a controller the day you find yourself copy-pasting attribute soup across handlers."
-            },
-            new BlogPost
-            {
-                Slug = "ef-core-migrations-on-startup",
-                Title = "Auto-migrating on startup: convenience vs. correctness",
-                Excerpt = "The one-liner that calls Database.MigrateAsync() at boot is fine — until it isn't. Here's when to keep it and when to rip it out.",
-                Tags = new List<string> { ".NET", "EF Core", "DevOps" },
-                ReadingMinutes = 4,
-                PublishedAt = now.AddDays(-10),
-                Content = @"## The pattern
-
-```csharp
-using var scope = app.Services.CreateScope();
-var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-await db.Database.MigrateAsync();
-```
-
-For a single-instance app, this is great. For a multi-replica deployment, you've just signed up for races between concurrent migrators on boot.
-
-## A safer default
-
-- **Single instance / hobby project** → keep it.
-- **Multi-replica** → run migrations as a separate one-shot job (init container, GitHub Action, or `dotnet ef database update` in CI) before the new pods start serving traffic."
-            },
-            new BlogPost
-            {
-                Slug = "vertical-slice-architecture",
-                Title = "Vertical slices made my .NET codebase boring (in a good way)",
-                Excerpt = "After two years of feature folders, here's why I won't go back to Controllers/Services/Repositories.",
-                Tags = new List<string> { "Architecture", ".NET", "DX" },
-                ReadingMinutes = 7,
-                PublishedAt = now.AddDays(-21),
-                Content = @"## The promise
-
-Group code by **feature**, not by **technical layer**. Each feature is its own folder with its endpoint, handler, validators, and DTOs.
-
-## What I actually got
-
-- **Find-it speed.** New devs locate a feature in under a minute.
-- **Smaller blast radius.** A change to `Posts` doesn't cause a merge conflict in `Projects`.
-- **Less plumbing.** I deleted my `IPostRepository` interface; the handler talks to `DbContext` directly.
-
-## The trade-offs
-
-You will duplicate code. That's a feature, not a bug — until two slices clearly want the same primitive, leave it alone."
             }
         );
 

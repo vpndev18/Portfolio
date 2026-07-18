@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { LoadingBlock, ErrorBlock } from '@/components/States'
 import { useDocumentTitle, useRobotsMeta } from '@/hooks/useDocumentTitle'
 import { formatDate } from '@/lib/utils'
+import { clearCache } from '@/lib/cache'
 import {
   adminApi,
   clearAdminKey,
@@ -165,6 +166,9 @@ function AdminConsole({ onSignOut }: { onSignOut: () => void }) {
         await adminApi.update(form.id, payload)
         setFlash('Post updated.')
       }
+      // Drop the public read cache so the live site reflects the edit
+      // immediately instead of serving the previous copy until it expires.
+      clearCache()
       startNew()
       await refresh()
       setTimeout(() => setFlash(null), 2500)
@@ -179,6 +183,7 @@ function AdminConsole({ onSignOut }: { onSignOut: () => void }) {
     if (!confirm('Delete this post permanently?')) return
     try {
       await adminApi.remove(id)
+      clearCache()
       await refresh()
       if (form.id === id) startNew()
     } catch (e) {
@@ -340,23 +345,29 @@ function AdminConsole({ onSignOut }: { onSignOut: () => void }) {
                   /{p.slug}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-1">
+              {/* Labelled, bordered actions: icon-only ghost buttons on a dark
+                  surface read as decoration rather than controls. */}
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={() => startEdit(p)}
                   aria-label={`Edit ${p.title}`}
+                  title={`Edit ${p.title}`}
                 >
                   <Pencil className="h-4 w-4" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={() => destroy(p.id)}
                   aria-label={`Delete ${p.title}`}
-                  className="hover:text-amber-400"
+                  title={`Delete ${p.title}`}
+                  className="border-red-500/30 text-red-400 hover:border-red-500/60 hover:bg-red-500/10 hover:text-red-300"
                 >
                   <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Delete</span>
                 </Button>
               </div>
             </div>

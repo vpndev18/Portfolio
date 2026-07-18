@@ -49,35 +49,50 @@ export function Nav() {
             {siteConfig.name.charAt(0).toUpperCase()}
           </span>
           <span className="text-[var(--color-foreground)]">
-            {siteConfig.name.toLowerCase()}
-            <span className="text-[var(--color-accent)]">.dev</span>
+            {siteConfig.domain.replace(/\.[^.]+$/, '')}
+            <span className="text-[var(--color-accent)]">
+              {siteConfig.domain.match(/\.[^.]+$/)?.[0]}
+            </span>
           </span>
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-2">
-          {siteConfig.nav.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              className={({ isActive }) =>
-                cn(
-                  'relative hidden rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:inline-block',
-                  isActive
-                    ? 'text-[var(--color-foreground)]'
-                    : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {item.label}
-                  {isActive && (
-                    <span className="absolute inset-x-3 -bottom-px h-px bg-[var(--color-accent)]" />
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {siteConfig.nav.map((item) =>
+            // Anchor links into the single-page home layout can't use NavLink's
+            // active state — every one of them would match "/" at once. The
+            // sticky SectionNav is what indicates position within the page.
+            item.href.includes('#') ? (
+              <Link
+                key={item.href}
+                to={item.href}
+                className="hidden rounded-md px-3 py-1.5 text-sm font-medium text-[var(--color-muted)] transition-colors hover:text-[var(--color-foreground)] sm:inline-block"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                className={({ isActive }) =>
+                  cn(
+                    'relative hidden rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:inline-block',
+                    isActive
+                      ? 'text-[var(--color-foreground)]'
+                      : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]',
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {item.label}
+                    {isActive && (
+                      <span className="absolute inset-x-3 -bottom-px h-px bg-[var(--color-accent)]" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ),
+          )}
 
           <button
             type="button"
