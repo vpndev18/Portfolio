@@ -12,7 +12,7 @@ import { api } from '@/lib/api'
 
 export function ProjectDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>()
-  const { data, loading, error } = useFetch(() => api.getProject(slug), [slug])
+  const { data, loading, error } = useFetch(() => api.getProject(slug), [slug], `project:${slug}`)
   useDocumentTitle(data?.title ?? null)
 
   return (

@@ -3,6 +3,7 @@ import { ArrowLeft, Clock } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import { highlightLanguages } from '@/lib/highlight'
 import { Container } from '@/components/ui/container'
 import { Badge } from '@/components/ui/badge'
 import { LoadingBlock, ErrorBlock } from '@/components/States'
@@ -16,7 +17,7 @@ import { api } from '@/lib/api'
 
 export function PostDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>()
-  const { data, loading, error } = useFetch(() => api.getPost(slug), [slug])
+  const { data, loading, error } = useFetch(() => api.getPost(slug), [slug], `post:${slug}`)
   useDocumentTitle(data?.title ?? null)
 
   return (
@@ -62,7 +63,10 @@ export function PostDetailPage() {
               <div className="prose-portfolio mt-10 max-w-2xl">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
+                  rehypePlugins={[
+                    // Only the registered languages ship — see lib/highlight.ts.
+                    [rehypeHighlight, { languages: highlightLanguages, detect: true }],
+                  ]}
                   components={{ pre: CodeBlock }}
                 >
                   {data.content}

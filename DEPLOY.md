@@ -1,132 +1,142 @@
-# Deploying vallabh.dev
+# Deploying vallabhniturkar.com
 
-Three pieces, three providers. All have free tiers that cover this kind of personal-portfolio traffic.
+Three pieces, two providers, all on free tiers.
 
 | Piece | Provider | Free tier |
 | --- | --- | --- |
-| Postgres | [Neon](https://neon.tech) | 0.5 GB storage, autoscale paused after inactivity |
-| API | [Fly.io](https://fly.io) (or [Render](https://render.com)) | One small VM is free; sleeps when idle |
-| Frontend | [Cloudflare Pages](https://pages.cloudflare.com) | Unlimited static traffic, global CDN |
-| DNS | Cloudflare (already set up) | Free |
+| Postgres | [Neon](https://neon.tech) | 0.5 GB storage, compute auto-suspends when idle |
+| API | [Fly.io](https://fly.io) | One `shared-cpu-1x` machine |
+| Frontend + edge cache | [Cloudflare Workers](https://workers.cloudflare.com) | 100k requests/day, global CDN |
+| DNS | Cloudflare | Free |
 
-> If you'd rather have one box host everything, see "Single-host alternative" at the bottom.
+## How requests actually flow
+
+```
+                     ┌──────────────────────────────┐
+   Browser ────────► │  Cloudflare Worker (edge)    │
+                     │                              │
+                     │  /*      → static SPA assets │──► instant, from edge
+                     │  /api/*  → cache lookup      │
+                     └───────────────┬──────────────┘
+                                     │ cache MISS only
+                                     ▼
+                        ┌─────────────────────────┐
+                        │  Fly.io — .NET 8 API    │
+                        │  output cache (5 min)   │
+                        └────────────┬────────────┘
+                                     │ cache MISS only
+                                     ▼
+                          ┌────────────────────┐
+                          │  Neon Postgres     │
+                          └────────────────────┘
+```
+
+Everything is served from **one origin**. The Worker owns both the static assets
+and `/api/*`, so the browser makes no cross-origin requests: no CORS preflight,
+no second DNS lookup, no second TLS handshake. The Fly app has no public custom
+domain and is only ever reached by the Worker.
+
+Three cache layers sit between a visitor and the database:
+
+1. **Browser** — `max-age=60`.
+2. **Cloudflare edge** — `s-maxage=600`, plus `stale-while-revalidate=86400`, so
+   the edge serves instantly and refreshes in the background. A sleeping machine
+   or a suspended Neon compute is never on a visitor's critical path.
+3. **API output cache** — 5 minutes in-process, evicted by tag the moment the
+   admin editor writes a post.
 
 ---
 
 ## 1. Database — Neon
 
-1. Sign up at neon.tech with GitHub.
-2. **Create project** → Region: pick the one closest to where the API will run (`Singapore` or `Mumbai` if you go AWS, `London` for Fly's `lhr`).
-3. From the dashboard, copy the **connection string** (it looks like `postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require`).
-4. Convert it to the form Npgsql expects:
+1. Sign up at neon.tech, create a project in **`us-east-1`** (co-located with the
+   Fly region below — keep these together, the API↔DB round trip is the one hop
+   no cache can hide).
+2. Copy the connection string and convert it to the form Npgsql expects:
    ```
    Host=HOST;Port=5432;Database=DBNAME;Username=USER;Password=PASSWORD;SSL Mode=Require;Trust Server Certificate=true
    ```
-   Save this — it's `ConnectionStrings__Default` for the API.
 
 ## 2. API — Fly.io
 
-```bash
-# from C:\work\Portfolio
-fly launch --no-deploy --copy-config --name portfolio-api --dockerfile Portfolio.API/Dockerfile
-# answer "no" to the Postgres prompt — we're using Neon.
-```
-
-This generates a `fly.toml`. Open it and confirm it has:
-
-```toml
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = "stop"
-  auto_start_machines = true
-  min_machines_running = 0
-```
-
-Set the secrets:
+`fly.toml` is already in the repo. From `C:\work\Portfolio`:
 
 ```bash
+fly apps create portfolio-api
 fly secrets set \
   ConnectionStrings__Default='Host=...;...;SSL Mode=Require;Trust Server Certificate=true' \
-  Admin__Key='generate-a-long-random-string-here' \
-  Cors__AllowedOrigins__0='https://vallabh.dev' \
-  Cors__AllowedOrigins__1='https://www.vallabh.dev'
-```
-
-Deploy:
-
-```bash
+  Admin__Key='generate-a-long-random-string-here'
 fly deploy
 ```
 
-The first deploy creates the machine; on success Fly prints something like `https://portfolio-api.fly.dev`. **Hit `https://portfolio-api.fly.dev/api/projects/`** in a browser — you should see the seeded JSON. The migration + seed run automatically on first boot.
+**The first deploy needs the schema created.** Migrations no longer run on every
+boot (that used to add a full round trip to a cold Neon compute before the app
+served its first request). Run them once, explicitly:
 
-## 3. Frontend — Cloudflare Pages
+```bash
+fly deploy --env RunMigrationsOnStartup=true
+```
 
-1. Push this repo to GitHub.
-2. In Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**.
-3. Pick your repo. **Configure build:**
-   - Framework preset: `Vite`
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Root directory (advanced): `Portfolio.Web`
-4. **Environment variables:**
-   - `VITE_API_URL` = `https://api.vallabh.dev`
-5. Click **Save and Deploy**. First build takes ~2 min. You'll get a `*.pages.dev` URL — confirm the site loads and `/projects` shows data.
+Then redeploy normally (`fly deploy`) so subsequent boots skip it. Repeat the
+`--env` form any time you add a migration.
+
+Verify: `curl https://portfolio-api.fly.dev/health` → `{"status":"ok"}`.
+
+Notes on the config:
+- `min_machines_running = 1` — no cold starts.
+- `auto_stop_machines = "suspend"` — suspend keeps memory warm, so a resume is
+  sub-second rather than a full boot.
+- The health check hits `/health`, which touches no database, so a health ping
+  can never wake Neon or block on a slow query.
+
+**CORS is no longer needed in production** — the Worker makes the API
+same-origin. `Cors:AllowedOrigins` only matters if you ever expose the Fly app
+directly.
+
+## 3. Frontend + edge cache — Cloudflare Workers
+
+The Worker (`Portfolio.Web/worker/index.js`) serves the SPA and proxies `/api/*`.
+
+In the Cloudflare dashboard → **Workers & Pages → your project → Settings**:
+- Root directory: `Portfolio.Web`
+- Build command: `npm ci && npm run build`
+- Deploy command: `npx wrangler deploy`
+
+**Remove the `VITE_API_URL` environment variable if it is still set.** The
+frontend now calls `/api/...` on its own origin; leaving the old value pointing
+at a separate API host would reintroduce cross-origin requests and CORS.
+
+If the Fly app name differs from `portfolio-api`, update `API_ORIGIN` in
+`Portfolio.Web/wrangler.toml`.
 
 ## 4. DNS — Cloudflare
 
-Assuming `vallabh.dev` is already in Cloudflare:
+Only the site itself needs DNS. Bind `vallabhniturkar.com` and `www` to the
+Worker under **Workers & Pages → your project → Settings → Domains & Routes**.
 
-1. **DNS → Records → Add record**
-   - Type: `CNAME`
-   - Name: `@` (apex)
-   - Target: `<your-project>.pages.dev`
-   - Proxy: **Proxied** (orange cloud)
-2. **Add another record**
-   - Type: `CNAME`
-   - Name: `www`
-   - Target: `vallabh.dev`
-   - Proxy: Proxied
-3. **Add the API subdomain**
-   - Type: `CNAME`
-   - Name: `api`
-   - Target: `portfolio-api.fly.dev`
-   - Proxy: **DNS only** (grey cloud) — Fly handles its own TLS, and proxying through Cloudflare-Free can break some `Host` header expectations. Switch to Proxied later once you've added the custom hostname inside Fly (`fly certs add api.vallabh.dev`).
-4. **Hook up the apex** in Cloudflare Pages: **Pages → your project → Custom domains → Set up a custom domain → `vallabh.dev`**. Cloudflare auto-issues TLS within minutes.
-5. **Hook up the API subdomain** in Fly:
-   ```bash
-   fly certs add api.vallabh.dev
-   ```
-   Wait ~30 s. Visit `https://api.vallabh.dev/api/projects/` — should return JSON.
-6. Back in Pages, update `VITE_API_URL` to `https://api.vallabh.dev` (it was already, this is just to confirm) and trigger a rebuild.
+You do **not** need an `api.` record — the Fly app is reached by the Worker over
+its `.fly.dev` hostname and is never contacted by browsers.
 
 ## 5. Smoke test
 
-- `https://vallabh.dev/` — landing page, hero loads
-- `https://vallabh.dev/projects` — projects render, filter pills work
-- `https://vallabh.dev/blog/<slug>` — markdown + code copy works
-- `https://vallabh.dev/admin` — login screen; key from `Admin__Key` secret unlocks
-- ⌘K — palette opens with all routes
+```bash
+# Second call should report HIT
+curl -sI https://vallabhniturkar.com/api/projects/ | grep -i -E 'x-edge-cache|cache-control'
+```
+
+- `/` — hero, then Experience / Projects / Skills / Writing / Highlights / Contact
+- Section rail highlights the section you're in as you scroll
+- `/blog/<slug>` — markdown renders, code blocks highlight and copy
+- `/admin` — key from `Admin__Key` unlocks; saving a post updates the live site
+  immediately (the write evicts the API output cache)
+- ⌘K — palette opens
 
 ## Operational notes
 
-- **Admin key**: never commit. Rotate via `fly secrets set Admin__Key=…`. Filter returns `503` if missing — fail-closed by design.
-- **Migrations**: run on API startup. Adding a new entity? Add a migration locally with `dotnet ef migrations add Name --project Portfolio.API`, commit, push, redeploy.
-- **DB backups**: Neon auto-snapshots on the free tier, but you can also pull a dump:
-  ```bash
-  pg_dump "$NEON_URL" -F c -f portfolio.dump
-  ```
-- **Cold starts**: Fly's free machine sleeps after a few min of inactivity. First request after sleep takes ~3–5 s. If that bothers you, set `min_machines_running = 1` (still free, just consumes more of your monthly hours).
-
----
-
-## Single-host alternative
-
-If you want one box for everything (no separate frontend host):
-
-1. Build the SPA inside the API Docker image and serve it via `app.UseStaticFiles()` + a fallback endpoint that returns `index.html` for non-`/api` paths.
-2. Skip Cloudflare Pages entirely. Point `vallabh.dev` straight at Fly via `fly certs add vallabh.dev`.
-3. Drop `VITE_API_URL` (frontend hits `/api` on the same origin).
-
-Trade-off: API now serves bytes it doesn't need to. Fine for portfolio scale; not worth it once you have real traffic.
+- **Admin key**: never commit. Rotate with `fly secrets set Admin__Key=…`. The
+  filter returns `503` when unset — fail-closed by design.
+- **Edge cache after an admin edit**: the API output cache is evicted instantly,
+  but Cloudflare may still serve a cached copy for up to `s-maxage` (10 min).
+  Purge from the Cloudflare dashboard if you need it live immediately.
+- **DB backups**: Neon auto-snapshots; `pg_dump "$NEON_URL" -F c -f portfolio.dump`
+  for a manual copy.

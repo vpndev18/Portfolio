@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 
 export function BlogPage() {
   useDocumentTitle('Writing')
-  const { data, loading, error } = useFetch(api.listPosts, [])
+  const { data, loading, error } = useFetch(api.listPosts, [], 'posts')
 
   return (
     <Container className="pt-16 pb-8">

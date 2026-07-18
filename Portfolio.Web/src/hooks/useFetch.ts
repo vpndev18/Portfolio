@@ -1,33 +1,66 @@
 import { useEffect, useState } from 'react'
+import { readCache, writeCache } from '@/lib/cache'
 
 interface FetchState<T> {
   data: T | null
   loading: boolean
   error: Error | null
+  /** True while a cached value is on screen and a fresh copy is in flight. */
+  revalidating: boolean
 }
 
-export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
+/**
+ * Fetch with stale-while-revalidate.
+ *
+ * When `key` is supplied and a cached value exists, that value is returned
+ * immediately (`loading: false`) and the network request runs in the background
+ * to refresh it. The result: no skeleton flash on repeat visits, and the page
+ * stays useful even if the origin is slow to answer.
+ */
+export function useFetch<T>(
+  fetcher: () => Promise<T>,
+  deps: unknown[] = [],
+  key?: string,
+) {
+  const cached = key ? readCache<T>(key) : null
+
   const [state, setState] = useState<FetchState<T>>({
-    data: null,
-    loading: true,
+    data: cached,
+    loading: cached === null,
     error: null,
+    revalidating: cached !== null,
   })
 
   useEffect(() => {
     let cancelled = false
-    setState({ data: null, loading: true, error: null })
+    const hit = key ? readCache<T>(key) : null
+
+    setState({
+      data: hit,
+      loading: hit === null,
+      error: null,
+      revalidating: hit !== null,
+    })
+
     fetcher()
       .then((data) => {
-        if (!cancelled) setState({ data, loading: false, error: null })
+        if (key) writeCache(key, data)
+        if (!cancelled) {
+          setState({ data, loading: false, error: null, revalidating: false })
+        }
       })
       .catch((error) => {
-        if (!cancelled)
-          setState({
-            data: null,
-            loading: false,
-            error: error instanceof Error ? error : new Error(String(error)),
-          })
+        if (cancelled) return
+        const err = error instanceof Error ? error : new Error(String(error))
+        // A failed revalidation must not blow away good cached content —
+        // showing slightly stale data beats showing an error block.
+        setState((prev) =>
+          prev.data !== null
+            ? { ...prev, revalidating: false }
+            : { data: null, loading: false, error: err, revalidating: false },
+        )
       })
+
     return () => {
       cancelled = true
     }

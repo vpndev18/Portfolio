@@ -12,6 +12,7 @@ public static class PostsEndpoints
         group.MapGet("/", async (PortfolioDbContext db, CancellationToken ct) =>
         {
             var posts = await db.Posts
+                .AsNoTracking()
                 .Where(p => p.PublishedAt != null)
                 .OrderByDescending(p => p.PublishedAt)
                 .Select(p => new PostListItem(
@@ -26,11 +27,13 @@ public static class PostsEndpoints
             return Results.Ok(posts);
         })
         .WithName("ListPosts")
+        .CacheOutput("Content")
         .Produces<List<PostListItem>>();
 
         group.MapGet("/{slug}", async (string slug, PortfolioDbContext db, CancellationToken ct) =>
         {
             var post = await db.Posts
+                .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Slug == slug && p.PublishedAt != null, ct);
 
             return post is null
@@ -38,6 +41,7 @@ public static class PostsEndpoints
                 : Results.Ok(post);
         })
         .WithName("GetPostBySlug")
+        .CacheOutput("Content")
         .Produces<BlogPost>()
         .Produces(StatusCodes.Status404NotFound);
 

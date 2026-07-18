@@ -11,7 +11,7 @@ import { api } from '@/lib/api'
 
 export function ProjectsPage() {
   useDocumentTitle('Projects')
-  const { data, loading, error } = useFetch(api.listProjects, [])
+  const { data, loading, error } = useFetch(api.listProjects, [], 'projects')
   const [filter, setFilter] = useState<string | null>(null)
 
   // Aggregate unique tech across all projects, ordered by frequency.

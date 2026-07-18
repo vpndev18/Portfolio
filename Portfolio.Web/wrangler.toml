@@ -1,19 +1,30 @@
-# Cloudflare Workers static-assets config for the Vite SPA.
-# The project on Cloudflare is a "Workers" project (not legacy Pages),
-# so deployment uses `npx wrangler deploy`, which reads this file.
+# Cloudflare Workers config for the portfolio.
+#
+# The Worker serves the built SPA from ./dist AND proxies /api/* to the Fly-hosted
+# .NET API, caching public GETs at the edge (see worker/index.js). Because both
+# are served from one origin, the browser makes no cross-origin API calls —
+# no CORS preflight, no extra DNS/TLS round trip.
+#
 # Live domain: https://vallabhniturkar.com (apex + www custom-domain-bound).
 #
 # Build pipeline (configured in the Cloudflare dashboard):
 #   1. Root directory:  /Portfolio.Web
 #   2. Build command:   npm ci && npm run build
 #   3. Deploy command:  npx wrangler deploy   (default)
-#
-# Wrangler then uploads everything in ./dist as static assets.
 name = "portfolio"
-compatibility_date = "2024-12-01"
+main = "worker/index.js"
+compatibility_date = "2025-06-01"
 
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 # Serve index.html for unmatched routes so React Router handles
 # client-side routes like /projects, /blog/:slug, /admin.
 not_found_handling = "single-page-application"
+# /api/* must reach the Worker instead of falling through to the SPA shell.
+run_worker_first = ["/api/*"]
+
+[vars]
+# The Fly app that runs the .NET API. Only the Worker talks to it — it is never
+# hit directly by browsers, so it needs no public custom domain.
+API_ORIGIN = "https://portfolio-api.fly.dev"

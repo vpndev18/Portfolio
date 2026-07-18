@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Auth;
 using Portfolio.API.Data;
@@ -27,7 +28,7 @@ public static class AdminPostsEndpoints
             return post is null ? Results.NotFound() : Results.Ok(post);
         });
 
-        group.MapPost("/", async (PostUpsert input, PortfolioDbContext db, CancellationToken ct) =>
+        group.MapPost("/", async (PostUpsert input, PortfolioDbContext db, IOutputCacheStore cache, CancellationToken ct) =>
         {
             var validation = Validate(input);
             if (validation is not null) return validation;
@@ -52,10 +53,11 @@ public static class AdminPostsEndpoints
             };
             db.Posts.Add(post);
             await db.SaveChangesAsync(ct);
+            await cache.EvictByTagAsync(CacheTags.Content, ct);
             return Results.Created($"/api/admin/posts/{post.Id}", post);
         });
 
-        group.MapPut("/{id:int}", async (int id, PostUpsert input, PortfolioDbContext db, CancellationToken ct) =>
+        group.MapPut("/{id:int}", async (int id, PostUpsert input, PortfolioDbContext db, IOutputCacheStore cache, CancellationToken ct) =>
         {
             var validation = Validate(input);
             if (validation is not null) return validation;
@@ -79,15 +81,17 @@ public static class AdminPostsEndpoints
             post.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync(ct);
+            await cache.EvictByTagAsync(CacheTags.Content, ct);
             return Results.Ok(post);
         });
 
-        group.MapDelete("/{id:int}", async (int id, PortfolioDbContext db, CancellationToken ct) =>
+        group.MapDelete("/{id:int}", async (int id, PortfolioDbContext db, IOutputCacheStore cache, CancellationToken ct) =>
         {
             var post = await db.Posts.FindAsync(new object[] { id }, ct);
             if (post is null) return Results.NotFound();
             db.Posts.Remove(post);
             await db.SaveChangesAsync(ct);
+            await cache.EvictByTagAsync(CacheTags.Content, ct);
             return Results.NoContent();
         });
 

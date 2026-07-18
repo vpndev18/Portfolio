@@ -21,6 +21,17 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
+// ─── Output caching ───────────────────────────────────────────────────────
+// Public content changes only when the admin edits it, so we cache responses
+// in-process and evict by tag on write. This is the second line of defence —
+// the Cloudflare Worker in front of us absorbs most reads before they land here.
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("Content", policy => policy
+        .Expire(TimeSpan.FromMinutes(5))
+        .Tag(CacheTags.Content));
+});
+
 // Exception handling: ASP.NET Core 8's IExceptionHandler pattern + ProblemDetails.
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -60,19 +71,56 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Fly terminates TLS at the edge and forwards plain HTTP to the container, so
+// an in-container HTTPS redirect would bounce healthy requests. Dev keeps it.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("Web");
+
+// Tell Cloudflare (and browsers) how long public GETs stay fresh. `s-maxage`
+// governs the edge cache, `stale-while-revalidate` lets the edge serve slightly
+// stale content instantly while it refreshes in the background — so a sleeping
+// machine or a suspended Neon compute is never on a visitor's critical path.
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.OnStarting(() =>
+    {
+        if (HttpMethods.IsGet(ctx.Request.Method)
+            && ctx.Response.StatusCode == StatusCodes.Status200OK
+            && ctx.Request.Path.StartsWithSegments("/api")
+            && !ctx.Request.Path.StartsWithSegments("/api/admin"))
+        {
+            ctx.Response.Headers.CacheControl =
+                "public, max-age=60, s-maxage=600, stale-while-revalidate=86400";
+        }
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
+app.UseOutputCache();
 
 // ─── Endpoint registration ────────────────────────────────────────────────
 app.MapProjectsEndpoints();
 app.MapPostsEndpoints();
 app.MapAdminPostsEndpoints();
 
-// ─── Migrate + seed on startup ────────────────────────────────────────────
-// Convenience for a small single-instance app. We'd reconsider for a
-// multi-replica production deployment (race conditions on concurrent migrate).
-using (var scope = app.Services.CreateScope())
+// Cheap liveness probe that never touches the database — used as the Fly health
+// check so a health ping can't wake Neon or block on a slow query.
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+   .ExcludeFromDescription();
+
+// ─── Migrate + seed ───────────────────────────────────────────────────────
+// Off the startup path by default: this used to run on every cold boot, adding a
+// full round-trip to a possibly-suspended Neon compute before the app served its
+// first request. Set RunMigrationsOnStartup=true for a deploy that needs it.
+if (app.Configuration.GetValue<bool>("RunMigrationsOnStartup"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
     await db.Database.MigrateAsync();
     await DbSeeder.SeedAsync(db);
