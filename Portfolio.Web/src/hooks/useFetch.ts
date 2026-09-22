@@ -35,6 +35,10 @@ export function useFetch<T>(
     let cancelled = false
     const hit = key ? readCache<T>(key) : null
 
+    // Re-seed from cache whenever `deps` change so a second key's result never
+    // renders under the previous key's data. Intentionally synchronous: the
+    // alternative is one frame of stale content.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({
       data: hit,
       loading: hit === null,

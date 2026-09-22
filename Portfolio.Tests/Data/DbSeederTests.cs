@@ -50,13 +50,13 @@ public class DbSeederTests
     }
 
     [Fact]
-    public async Task SeedAsync_DoesNothing_WhenProjectsAlreadyExist()
+    public async Task SeedAsync_RemovesProjects_NoLongerInSeed()
     {
         await using var db = CreateDb();
         db.Projects.Add(new Project
         {
-            Slug = "existing",
-            Title = "Existing project",
+            Slug = "retired-project",
+            Title = "Retired project",
             ShortDescription = "x",
             LongDescription = "x",
             TechStack = new List<string> { "x" },
@@ -66,9 +66,31 @@ public class DbSeederTests
 
         await DbSeeder.SeedAsync(db);
 
-        var projects = await db.Projects.ToListAsync();
-        Assert.Single(projects);
-        Assert.Equal("existing", projects[0].Slug);
+        var slugs = await db.Projects.Select(p => p.Slug).ToListAsync();
+        Assert.DoesNotContain("retired-project", slugs);
+        Assert.NotEmpty(slugs);
+    }
+
+    [Fact]
+    public async Task SeedAsync_RefreshesFields_OnProjectsThatAlreadyExist()
+    {
+        // The seeder is the single source of truth for projects: a row that
+        // already exists is updated in place, which is how corrections such as
+        // a moved repository URL reach an environment that was seeded earlier.
+        await using var db = CreateDb();
+        await DbSeeder.SeedAsync(db);
+
+        var seeded = await db.Projects.FirstAsync();
+        var slug = seeded.Slug;
+        seeded.RepoUrl = "https://github.com/vpndev18/stale-url";
+        seeded.Title = "Stale title";
+        await db.SaveChangesAsync();
+
+        await DbSeeder.SeedAsync(db);
+
+        var refreshed = await db.Projects.SingleAsync(p => p.Slug == slug);
+        Assert.NotEqual("https://github.com/vpndev18/stale-url", refreshed.RepoUrl);
+        Assert.NotEqual("Stale title", refreshed.Title);
     }
 
     [Fact]

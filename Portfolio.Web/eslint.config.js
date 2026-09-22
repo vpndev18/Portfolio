@@ -19,4 +19,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // The Vite entry point mounts the app and exports nothing by design, so
+    // react-refresh's "components must be exported" rule cannot apply. The
+    // lazy() route handles here are never hot-reloaded as modules themselves.
+    files: ['src/main.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

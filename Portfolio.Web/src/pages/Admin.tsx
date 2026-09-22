@@ -117,7 +117,11 @@ function AdminConsole({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
+  // Load the post list once on mount. refresh() flips `loading` synchronously
+  // before awaiting, which is the point -- the table renders its skeleton on
+  // the first paint instead of a frame of "no posts".
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

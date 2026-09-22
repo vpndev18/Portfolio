@@ -70,9 +70,12 @@ export function CommandPalette() {
       })
   }, [open, posts.length, projects.length])
 
-  // Reset state when closed.
+  // Reset state when closed. The reset must follow the `open` prop, and the
+  // palette unmounts its own subtree rather than remounting, so there is no
+  // key to reset from -- an effect is the intended mechanism here.
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery('')
       setActive(0)
     } else {
@@ -164,32 +167,31 @@ export function CommandPalette() {
     return Array.from(map.entries())
   }, [filtered])
 
-  // Keep active index inside bounds when query changes.
-  useEffect(() => {
-    setActive((a) => Math.min(a, Math.max(filtered.length - 1, 0)))
-  }, [filtered.length])
+  // Filtering can shrink the list under the cursor, so clamp on read rather
+  // than syncing through an effect -- no out-of-bounds intermediate render.
+  const activeIndex = Math.min(active, Math.max(filtered.length - 1, 0))
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setActive((a) => (a + 1) % Math.max(filtered.length, 1))
+        setActive((activeIndex + 1) % Math.max(filtered.length, 1))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setActive((a) => (a - 1 + filtered.length) % Math.max(filtered.length, 1))
+        setActive((activeIndex - 1 + filtered.length) % Math.max(filtered.length, 1))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        filtered[active]?.perform()
+        filtered[activeIndex]?.perform()
       }
     },
-    [filtered, active],
+    [filtered, activeIndex],
   )
 
   // Scroll active row into view.
   useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-cmd-index="${active}"]`)
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-cmd-index="${activeIndex}"]`)
     el?.scrollIntoView({ block: 'nearest' })
-  }, [active])
+  }, [activeIndex])
 
   if (!open) return null
 
@@ -238,7 +240,7 @@ export function CommandPalette() {
                   </div>
                   {list.map((it, i) => {
                     const idx = baseIdx + i
-                    const isActive = idx === active
+                    const isActive = idx === activeIndex
                     return (
                       <button
                         key={it.id}
