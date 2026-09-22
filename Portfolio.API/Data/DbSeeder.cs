@@ -32,7 +32,7 @@ public static class DbSeeder
                 ShortDescription = "Monte Carlo wealth simulator with AI-driven financial advice via Google Gemini.",
                 LongDescription = "Predictive financial planning app combining 1,000+ Monte Carlo market simulations with Generative AI insights. Backend uses ASP.NET Core 9 minimal APIs with MediatR and vertical slice architecture; frontend is React 19 with Chart.js. Hosted on Azure with Postgres on Neon.",
                 LiveUrl = null,
-                RepoUrl = "https://github.com/vpndev18/Foresight-AI",
+                RepoUrl = "https://github.com/vpndev18/Foresight",
                 TechStack = new List<string> { ".NET 9", "Minimal APIs", "MediatR", "PostgreSQL", "React 19", "Chart.js", "Gemini AI", "Docker" },
                 DisplayOrder = 1
             },
