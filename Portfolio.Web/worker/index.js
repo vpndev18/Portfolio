@@ -3,7 +3,7 @@
  *
  * Two jobs:
  *   1. Serve the built SPA from the ASSETS binding (static, already at the edge).
- *   2. Proxy /api/* to the Fly-hosted .NET API and cache the responses at the
+ *   2. Proxy /api/* to the Render-hosted .NET API and cache the responses at the
  *      edge, so the origin is only touched on a cache miss.
  *
  * Serving the API from this same Worker means the browser talks to exactly one

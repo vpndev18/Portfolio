@@ -5,7 +5,7 @@ Three pieces, two providers, all on free tiers.
 | Piece | Provider | Free tier |
 | --- | --- | --- |
 | Postgres | [Neon](https://neon.tech) | 0.5 GB storage, compute auto-suspends when idle |
-| API | [Fly.io](https://fly.io) | One `shared-cpu-1x` machine |
+| API | [Render](https://render.com) | One free web service (Docker); sleeps when idle |
 | Frontend + edge cache | [Cloudflare Workers](https://workers.cloudflare.com) | 100k requests/day, global CDN |
 | DNS | Cloudflare | Free |
 
@@ -21,7 +21,7 @@ Three pieces, two providers, all on free tiers.
                                      │ cache MISS only
                                      ▼
                         ┌─────────────────────────┐
-                        │  Fly.io — .NET 8 API    │
+                        │  Render — .NET 8 API    │
                         │  output cache (5 min)   │
                         └────────────┬────────────┘
                                      │ cache MISS only
@@ -33,7 +33,7 @@ Three pieces, two providers, all on free tiers.
 
 Everything is served from **one origin**. The Worker owns both the static assets
 and `/api/*`, so the browser makes no cross-origin requests: no CORS preflight,
-no second DNS lookup, no second TLS handshake. The Fly app has no public custom
+no second DNS lookup, no second TLS handshake. The Render service has no public custom
 domain and is only ever reached by the Worker.
 
 Three cache layers sit between a visitor and the database:
@@ -50,48 +50,52 @@ Three cache layers sit between a visitor and the database:
 ## 1. Database — Neon
 
 1. Sign up at neon.tech, create a project in **`us-east-1`** (co-located with the
-   Fly region below — keep these together, the API↔DB round trip is the one hop
+   Render region below — keep these together, the API↔DB round trip is the one hop
    no cache can hide).
 2. Copy the connection string and convert it to the form Npgsql expects:
    ```
    Host=HOST;Port=5432;Database=DBNAME;Username=USER;Password=PASSWORD;SSL Mode=Require;Trust Server Certificate=true
    ```
 
-## 2. API — Fly.io
+## 2. API — Render
 
-`fly.toml` is already in the repo. From `C:\work\Portfolio`:
+Service: `portfolio-api-p99i` → `https://portfolio-api-p99i.onrender.com`.
 
-```bash
-fly apps create portfolio-api
-fly secrets set \
-  ConnectionStrings__Default='Host=...;...;SSL Mode=Require;Trust Server Certificate=true' \
-  Admin__Key='generate-a-long-random-string-here'
-fly deploy
+In the Render dashboard, create a **Web Service** from `vpndev18/Portfolio`:
+
+| Setting | Value |
+| --- | --- |
+| Branch | `master` |
+| Runtime | Docker |
+| Dockerfile path | `Portfolio.API/Dockerfile` |
+| Docker build context | `.` (repo root — the Dockerfile copies `Portfolio.API/...`) |
+| Health check path | `/health` |
+| Auto-deploy | On commit |
+
+Environment variables:
+
+```
+ConnectionStrings__Default=Host=...;...;SSL Mode=Require;Trust Server Certificate=true
+Admin__Key=generate-a-long-random-string-here
+PORT=8080
 ```
 
-**The first deploy needs the schema created.** Migrations no longer run on every
-boot (that used to add a full round trip to a cold Neon compute before the app
-served its first request). Run them once, explicitly:
+**Migrations and seeding only run when asked.** They are off the startup path
+(that used to add a full round trip to a cold Neon compute before the app served
+its first request). The seeder is also what syncs project data (e.g. `RepoUrl`)
+from `Data/DbSeeder.cs` into existing rows. For a deploy that adds a migration or
+changes seed data, add `RunMigrationsOnStartup=true`, deploy, then remove it.
 
-```bash
-fly deploy --env RunMigrationsOnStartup=true
-```
+Verify: `curl https://portfolio-api-p99i.onrender.com/health` → `{"status":"ok"}`.
 
-Then redeploy normally (`fly deploy`) so subsequent boots skip it. Repeat the
-`--env` form any time you add a migration.
-
-Verify: `curl https://portfolio-api.fly.dev/health` → `{"status":"ok"}`.
-
-Notes on the config:
-- `min_machines_running = 1` — no cold starts.
-- `auto_stop_machines = "suspend"` — suspend keeps memory warm, so a resume is
-  sub-second rather than a full boot.
-- The health check hits `/health`, which touches no database, so a health ping
-  can never wake Neon or block on a slow query.
-
-**CORS is no longer needed in production** — the Worker makes the API
-same-origin. `Cors:AllowedOrigins` only matters if you ever expose the Fly app
-directly.
+Notes:
+- The free tier spins the service down after ~15 min idle; the next uncached
+  request waits for a cold boot. The edge cache's `stale-while-revalidate`
+  keeps that off most visitors' critical path.
+- `/health` touches no database, so a health ping can never wake Neon or block
+  on a slow query.
+- **Recreated the GitHub repo?** Render links services by repo ID, not name.
+  Reconnect under Settings → Build & Deploy → Repository, then Manual Deploy.
 
 ## 3. Frontend + edge cache — Cloudflare Workers
 
@@ -106,7 +110,7 @@ In the Cloudflare dashboard → **Workers & Pages → your project → Settings*
 frontend now calls `/api/...` on its own origin; leaving the old value pointing
 at a separate API host would reintroduce cross-origin requests and CORS.
 
-If the Fly app name differs from `portfolio-api`, update `API_ORIGIN` in
+If the Render service URL changes, update `API_ORIGIN` in
 `Portfolio.Web/wrangler.toml`.
 
 ## 4. DNS — Cloudflare
@@ -114,8 +118,8 @@ If the Fly app name differs from `portfolio-api`, update `API_ORIGIN` in
 Only the site itself needs DNS. Bind `vallabhniturkar.com` and `www` to the
 Worker under **Workers & Pages → your project → Settings → Domains & Routes**.
 
-You do **not** need an `api.` record — the Fly app is reached by the Worker over
-its `.fly.dev` hostname and is never contacted by browsers.
+You do **not** need an `api.` record — the Render service is reached by the Worker over
+its `.onrender.com` hostname and is never contacted by browsers.
 
 ## 5. Smoke test
 
@@ -133,7 +137,7 @@ curl -sI https://vallabhniturkar.com/api/projects/ | grep -i -E 'x-edge-cache|ca
 
 ## Operational notes
 
-- **Admin key**: never commit. Rotate with `fly secrets set Admin__Key=…`. The
+- **Admin key**: never commit. Rotate it in the Render service's Environment tab. The
   filter returns `503` when unset — fail-closed by design.
 - **Edge cache after an admin edit**: the API output cache is evicted instantly,
   but Cloudflare may still serve a cached copy for up to `s-maxage` (10 min).

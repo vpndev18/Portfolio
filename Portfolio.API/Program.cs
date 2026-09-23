@@ -71,7 +71,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Fly terminates TLS at the edge and forwards plain HTTP to the container, so
+// Render terminates TLS at the edge and forwards plain HTTP to the container, so
 // an in-container HTTPS redirect would bounce healthy requests. Dev keeps it.
 if (app.Environment.IsDevelopment())
 {
@@ -109,7 +109,7 @@ app.MapProjectsEndpoints();
 app.MapPostsEndpoints();
 app.MapAdminPostsEndpoints();
 
-// Cheap liveness probe that never touches the database — used as the Fly health
+// Cheap liveness probe that never touches the database — used as the Render health
 // check so a health ping can't wake Neon or block on a slow query.
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
    .ExcludeFromDescription();
